@@ -20,6 +20,7 @@ package com.fortmoon.data;
 
 import java.awt.Component;
 import java.io.Serializable;
+import java.util.HashMap;
 
 /**
  * @author Christopher Steel - FortMoon Consulting, Inc.
@@ -39,9 +40,11 @@ public class ColumnBean extends Component implements Serializable {
 	private int columnSize = 1;
 	private boolean isUnique = true;
 	private boolean isIndexed = false;
+	private boolean isIndex = false;
 	private boolean isNullable = false;
 	private boolean isPrimaryKey = false;
-	private SQLTYPE type = SQLTYPE.NULL;
+	private SQLTYPE sqlType = SQLTYPE.NULL;
+	private JavaType javaType = JavaType.NULL;
 	private String name;
 	private boolean isCharBased = true;
 	
@@ -125,18 +128,18 @@ public class ColumnBean extends Component implements Serializable {
 	}
 
 	/**
-	 * @return the type
+	 * @return the sqlType
 	 */
-	public SQLTYPE getType() {
-		return type;
+	public SQLTYPE getSQLType() {
+		return sqlType;
 	}
 
 	/**
-	 * @param type the type to set
+	 * @param sqlType the sqlType to set
 	 */
-	public void setType(SQLTYPE type) {
-		this.firePropertyChange(SQL_TYPE, this.type, type);
-		this.type = type;
+	public void setSQLType(SQLTYPE type) {
+		this.firePropertyChange(SQL_TYPE, this.sqlType, type);
+		this.sqlType = type;
 	}
 
 	/**
@@ -170,7 +173,23 @@ public class ColumnBean extends Component implements Serializable {
 	}
 	
 	public String toString() {
-		return "Name: " + name + " Type: " + type + " Size: " + columnSize + " Unique: " + isUnique + " PK: " + isPrimaryKey +  " CharBased: " + isCharBased + "\n";
+		return "Name: " + name + " Type: " + sqlType + " Size: " + columnSize + " Unique: " + isUnique + " PK: " + isPrimaryKey +  " CharBased: " + isCharBased + "\n";
+	}
+
+	public boolean getIsIndex() {
+		return this.isIndex;
+	}
+
+	public void setIsIndex(boolean val) {
+		this.isIndex = val;
+	}
+
+	public JavaType getJavaType() {
+		return javaType;
+	}
+
+	public void setJavaType(JavaType javaType) {
+		this.javaType = javaType;
 	}
 
 }

@@ -52,43 +52,21 @@ public class CSVLoader {
 	protected String token = "\\|"; 
 	protected File file = null;
 	protected String fileName = null;
-	protected Connection con = null;
-	protected Statement st = null;
-	protected ResultSet rs = null;
-	protected int batchSize = 5000;
 	protected ArrayList<String> columnNames = new ArrayList<String>();
 	protected ColumnModel columnModel = new ColumnModel();
-	protected String url = "jdbc:oracle:thin:@64.91.229.95:1521:ora";
-	protected String user = "WPT_STAGING";
-	protected String password = "WPT_STAGING";
 	protected FileReader reader;
 	protected LineNumberReader lr;
-	protected String tableName;
-	protected String insertPreamble;
 	protected long numLines = 0;
-	protected MessageDigest digest;
-	protected BlockingQueue<ArrayList<String>> queue = new LinkedBlockingQueue<ArrayList<String>>(1);
-	protected boolean skipBlobs = true;
     private Logger log = Logger.getLogger(CSVLoader.class.getName());
     
 	
     
     public CSVLoader() {
     	log.info("called");
-    	try {
-			digest = MessageDigest.getInstance("MD5");
-	    	Class.forName ("oracle.jdbc.OracleDriver");
-		}
-		catch (Exception e) {
-			//log.error("Exception in constructor: " + e , e);
-			throw new RuntimeException("Exception in constructor: " + e , e);
-		}
-
     }
     
     public void load() throws Exception {
     	file = new File(fileName);
-    	tableName = fileName.substring(0, fileName.indexOf('.'));
     	String line = null;
     	int counter = 0;
     	try {
@@ -103,36 +81,16 @@ public class CSVLoader {
 
 			line = lr.readLine();
 			while(line != null) {
-				//if(line.contains("|VT")) {
-					counter++;
-					addValues(statement, line, counter);
-					// update every 1000 records
-					if (counter % batchSize == 0) {
-						log.info("Executing batch for line " + counter + " of " + this.numLines);
-						executeBatch(statement);
-					}
-				//}
+				counter++;
 				line = lr.readLine();
 			}
 			// get the last ones
-			log.info("Executing final batch");
-			executeBatch(statement);
 			log.info("All batches completed succesfully.");
 		} 
     	catch (Exception e) {
 			e.printStackTrace();
 			throw e;
 		} 
-    	finally {
-    		try {
-				reader.close();
-				if (con != null)
-					con.close();
-			}
-			catch (IOException e) {
-				log.error("Non-Fatal Exception closing FileReader: " + e.getMessage(), e);
-			}
-    	}
 		log.info("\n\nLoad complete. Goodbye.\n");
     }
     
@@ -169,9 +127,9 @@ public class CSVLoader {
 		boolean foundPK = false;
 		// Set all the null columns to VARCHAR
 		for(ColumnBean column : this.columnModel) {
-			SQLTYPE type = column.getType();
+			SQLTYPE type = column.getSQLType();
 			if(type.equals(SQLTYPE.NULL)) {
-				column.setType(SQLTYPE.VARCHAR);
+				column.setSQLType(SQLTYPE.VARCHAR);
 			}
 			if((type.equals(SQLTYPE.INTEGER) || type.equals(SQLTYPE.BIGINT)) 
 					&& column.isUnique() && !foundPK) {
@@ -223,8 +181,8 @@ public class CSVLoader {
 						colType = SQLTYPE.VARCHAR;
 
 					log.debug("SQL Type: " + colType);
-					if (column.getType().getValue() > colType.getValue()) {
-						column.setType(colType);
+					if (column.getSQLType().getValue() > colType.getValue()) {
+						column.setSQLType(colType);
 					}
 					int valSize = val.length();
 					if (skipBlobs && valSize > 255)
@@ -310,8 +268,8 @@ public class CSVLoader {
 			 cs.append(", ");
 			}
 			cs.append(column.getName());
-			cs.append(" " + column.getType().toString());
-			if(column.getType() == SQLTYPE.VARCHAR)
+			cs.append(" " + column.getSQLType().toString());
+			if(column.getSQLType() == SQLTYPE.VARCHAR)
 				cs.append("(" + (column.getColumnSize()+3000) + ")");
 			if(!column.isNullable())
 				cs.append(" NOT NULL");
@@ -421,41 +379,6 @@ public class CSVLoader {
 		}
 	}
 
-	public String getVersion() throws Exception {
-        try {
-            con = DriverManager.getConnection(url, user, password);
-            st = con.createStatement();
-            rs = st.executeQuery("select * from v$version");
-
-            if (rs.next()) {
-                log.debug("Database version number: " + rs.getString(1));
-                return rs.getString(1);
-            }
-
-        } catch (SQLException ex) {
-            log.error(ex.getMessage(), ex);
-            System.out.println(ex);
-            throw ex;
-        } finally {
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (st != null) {
-                    st.close();
-                }
-                if (con != null) {
-                    con.close();
-                }
-
-            } catch (SQLException ex) {
-                log.error(ex.getMessage(), ex);
-            }
-        }
-        return null;
-		
-	}
-
 	/**
 	 * @return the fileName
 	 */
@@ -482,76 +405,6 @@ public class CSVLoader {
 	 */
 	public void setToken(String token) {
 		this.token = token;
-	}
-
-	/**
-	 * @return the batchSize
-	 */
-	public int getBatchSize() {
-		return batchSize;
-	}
-
-	/**
-	 * @param batchSize the batchSize to set
-	 */
-	public void setBatchSize(int batchSize) {
-		this.batchSize = batchSize;
-	}
-
-	/**
-	 * @return the url
-	 */
-	public String getUrl() {
-		return url;
-	}
-
-	/**
-	 * @param url the url to set
-	 */
-	public void setUrl(String url) {
-		this.url = url;
-	}
-
-	/**
-	 * @return the user
-	 */
-	public String getUser() {
-		return user;
-	}
-
-	/**
-	 * @param user the user to set
-	 */
-	public void setUser(String user) {
-		this.user = user;
-	}
-
-	/**
-	 * @return the password
-	 */
-	public String getPassword() {
-		return password;
-	}
-
-	/**
-	 * @param password the password to set
-	 */
-	public void setPassword(String password) {
-		this.password = password;
-	}
-
-	/**
-	 * @return the tableName
-	 */
-	public String getTableName() {
-		return tableName;
-	}
-
-	/**
-	 * @param tableName the tableName to set
-	 */
-	public void setTableName(String tableName) {
-		this.tableName = tableName;
 	}
 
 	public static void main(String[] args) throws Exception {
