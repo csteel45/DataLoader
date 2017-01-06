@@ -18,8 +18,11 @@
  */
 package com.fortmoon.data;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.PreparedStatement;
+import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 
@@ -28,20 +31,18 @@ import org.apache.log4j.Logger;
 /**
  * @author Christopher Steel - FortMoon Consulting, Inc.
  *
- * @since Dec 16, 2016 6:28:55 PM
+ * @since Dec 16, 2011 6:28:55 PM
  */
 public class JavaTypeUtil {
 	private static Logger log = Logger.getLogger(JavaTypeUtil.class);
 	private static final String called = "called.";
-	/**
-	 * @param val
-	 * @return
-	 */
+
 	@SuppressWarnings("deprecation")
 	private static boolean isDate(String val) {
 		log.trace(called);
 		try {
-			Date.parse(val);
+			String str = val.replace('-', '/');
+			Date.parse(str);
 			return true;
 		}
 		catch(IllegalArgumentException ie) {
@@ -59,6 +60,13 @@ public class JavaTypeUtil {
 
 		if(val != null && (val.equalsIgnoreCase("true") || val.equalsIgnoreCase("false")))
 			return true;
+		try {
+			if (val.length() == 1 && (Integer.valueOf(val).equals(1) || Integer.valueOf(val).equals(0)))
+				return true;
+		}
+		catch (NumberFormatException nfe) {
+		}
+			
 		return false;
 	}
 	
@@ -91,7 +99,7 @@ public class JavaTypeUtil {
 		log.trace(called);
 
 		if(val != null) {
-			String str[] = val.split("\\s");
+			String str[] = val.split(" ");
 			if(str.length == 2 && isDate(str[0]) && isTime(str[1]))
 				return true;
 
@@ -113,6 +121,20 @@ public class JavaTypeUtil {
 		return false;
 	}
 	
+	private static boolean isShort(String string) {
+		log.trace(called);
+
+		// Discard strings starting with 0 as not numbers
+		if (string != null && !(string.length() > 1 && string.startsWith("0"))) {
+			try {
+				Short.parseShort(string);
+				return true;
+			} catch (IllegalArgumentException iae) {
+			}
+		}
+		return false;
+	}
+
 	/**
 	 * @param string
 	 * @return
@@ -132,6 +154,21 @@ public class JavaTypeUtil {
 		return false;
 	}
 	
+	private static boolean isLong(String string) {
+		log.trace(called);
+
+		// Discard strings starting with 0 as not numbers
+		if (string != null && !(string.length() > 1 && string.startsWith("0"))) {
+			try {
+				Long.parseLong(string);
+				return true;
+			} catch (IllegalArgumentException iae) {
+
+			}
+		}
+		return false;
+	}
+
 	private static boolean isFloat(String string) {
 		log.trace(called);
 
@@ -170,154 +207,74 @@ public class JavaTypeUtil {
 	private static boolean isBigInt(String string) {
 		log.trace(called);
 
-		if (string != null && !(string.length() > 1 && string.startsWith("0"))) {
-			try {
-				Long value = Long.parseLong(string);
-				if(Long.MIN_VALUE < value && value < Long.MAX_VALUE) {
-					return true;
-				}
-			} catch (IllegalArgumentException iae) {
-
-			}
+		if (string == null || (string.length() > 1 && string.startsWith("0")))
+			return false;
+		
+		try {
+				BigInteger bi = new BigInteger(string);
+			} 
+		catch (IllegalArgumentException iae) {
+				return false;
 		}
-		return false;
-	}
-	
-	private static boolean isVarChar(String string) {
-		log.trace(called);
-
-		if (string != null && string.length() < 255) {
-			return true;
-		}
-		return false;
+		
+		return true;
 	}
 
 	/**
 	 * @param string
 	 * @return
 	 */
-	private static boolean isBlob(String string) {
+	private static boolean isBigDecimal(String string) {
 		log.trace(called);
 
-		if(null != string && string.length() < 65535)
-			return true;
-		return false;
+		if (string == null || (string.length() > 1 && string.startsWith("0") && !string.startsWith("0.")))
+			return false;
+
+		try {
+			BigDecimal bd = new BigDecimal(string);
+		}
+		catch(Exception e) {
+			return false;
+		}
+		return true;
 	}
 	
 	/**
 	 * @param string
 	 * @return
 	 */
-	public static SQLTYPE getType(String string) {
+	public static JavaType getType(String string) {
 		log.trace(called);
 
 		if(isNull(string))
-			return SQLTYPE.NULL;
+			return JavaType.NULL;
 		if(isDateTime(string))
-			return SQLTYPE.DATETIME;
+			return JavaType.DATETIME;
 		if(isDate(string))
-			return SQLTYPE.DATE;
+			return JavaType.DATE;
 		if(isTime(string))
-			return SQLTYPE.TIME;
+			return JavaType.TIME;
 		if(isBool(string))
-			return SQLTYPE.VARCHAR;  //No BOOL for Oracle
+			return JavaType.BOOL;
+		if(isShort(string))
+			return JavaType.SHORT;
 		if(isInteger(string))
-			return SQLTYPE.INTEGER;
+			return JavaType.INTEGER;
+		if(isLong(string))
+			return JavaType.LONG;
 		if(isBigInt(string))
-			return SQLTYPE.BIGINT;
-		if(isBigInt(string))
-			return SQLTYPE.BIGINT;
+			return JavaType.BIGINT;
 		if(isFloat(string))
-			return SQLTYPE.FLOAT;
+			return JavaType.FLOAT;
 		if(isDouble(string))
-			return SQLTYPE.DOUBLE;		
+			return JavaType.DOUBLE;		
+		if(isBigDecimal(string))
+			return JavaType.BIGDECIMAL;
 		if(isChar(string))
-			return SQLTYPE.VARCHAR;  //Should be CHAR but no for Oracle
-		if(isVarChar(string))
-			return SQLTYPE.VARCHAR;
-		if(isBlob(string))
-			return SQLTYPE.BLOB;
-		return SQLTYPE.LONGBLOB;
+			return JavaType.CHAR;
+		
+		return JavaType.STRING;
 	}
-	
-	public static void setValue(PreparedStatement stmt, int colIndex, String string) throws Exception {
-		int index = colIndex + 1;
-		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		try {
-			if (isNull(string)) {
-				stmt.setString(index, null);
-				return;
-			}
-			if (isDateTime(string)) {
-				//log.info("DATETIME:	" + string);
-				try {
-					stmt.setDate(index, (java.sql.Date) format.parse(string));
-				}
-				catch (ParseException pe) {
-					try {
-						java.util.Date date = new SimpleDateFormat("MM/dd/yyyy h:mm:ss a").parse(string);
-						String str = new SimpleDateFormat("yyyy-MM-dd").format(date);
-						//log.info("New DATE str:	" +  str);
-						Date jdate = Date.valueOf(str);
-
-						//log.info("New DATE date:	" +  jdate.toString());
-						stmt.setDate(index, jdate);
-					}
-					catch (ParseException pex) {
-						log.info("Exception parsing DATE: " + pex);
-						stmt.setString(index, string);
-					}
-				}
-				return;
-			}
-			if (isDate(string)) {
-				log.debug("DATE:	" + string);
-				//String finalexampledt = new SimpleDateFormat("yyyy-MM-dd").format(new SimpleDateFormat("dd-MM-yyyy").parse(s));
-				try {
-					java.util.Date date = new SimpleDateFormat("MM/dd/yyyy").parse(string);
-					String str = new SimpleDateFormat("yyyy-MM-dd").format(date);
-					//log.info("New DATE str:	" +  str);
-					Date jdate = Date.valueOf(str);
-					//log.info("New DATE date:	" +  jdate.toString());
-					stmt.setDate(index, jdate);
-				}
-				catch (ParseException pe) {
-					log.info("Exception parsing DATE: " + pe);
-					stmt.setString(index, string);
-				}
-				return;
-			}
-			if (isTime(string)) {
-				log.info("TIME:	" + string);
-				try {
-					stmt.setDate(index, (java.sql.Date) format.parse(string));
-				}
-				catch (ParseException pe) {
-					stmt.setString(index, string);
-				}
-				return;
-			}
-			if (isInteger(string)) {
-				stmt.setInt(index, Integer.parseInt(string));
-				return;
-			}
-			if (isFloat(string)) {
-				stmt.setFloat(index, Float.parseFloat(string));
-				return;
-			}
-			if (isDouble(string)) {
-				stmt.setDouble(index, Double.parseDouble(string));
-				return;
-			}
-			stmt.setString(index, string);
-		}
-		catch (Exception e) {
-			log.error("Exception at index: " + index + " in string: " + string);
-			throw e;
-		}
-
-	}
-
 	
 	/**
 	 * @param args
@@ -326,37 +283,40 @@ public class JavaTypeUtil {
 		String blob = new String(new char[65534]);
 		String longBlob = new String(new char[65536]);
 		
-		System.out.println("Type of <null>			" + getType(null));
-		System.out.println("Type of ''			" + getType(""));
-		System.out.println("Type of 2011-08-23		" + getType("2011-08-23"));
-		System.out.println("Type of 12:02:23		" + getType("12:02:23"));
-		System.out.println("Type of 2011-08-23 12:02:23	" + getType("2011-08-23 12:02:23"));
-		System.out.println("Type of 12/31/1999		" + getType("12/31/1999"));
+		System.out.println("Type of <null>					" + getType(null));
+		System.out.println("Type of ''						" + getType(""));
+		System.out.println("Type of 2011-08-23				" + getType("2011-08-23"));
+		System.out.println("Type of 12:02:23				" + getType("12:02:23"));
+		System.out.println("Type of 2011-08-23 12:02:23		" + getType("2011-08-23 12:02:23"));
+		System.out.println("Type of 12/31/1999				" + getType("12/31/1999"));
 		System.out.println("Type of 12/31/1999 7:44:48 PM	" + getType("12/31/1999 7:41:48 PM"));
-		System.out.println("Type of 12			" + getType("12"));
-		System.out.println("Type of 12.23			" + getType("12.23"));
-		System.out.println("Type of 0			" + getType("0"));
-		System.out.println("Type of 016			" + getType("016"));
-		System.out.println("Type of 16			" + getType("16"));
-		System.out.println("Type of 22000000000		" + getType("22000000000"));
-		System.out.println("Type of 22000000000.1		" + getType("22000000000.1"));
-		System.out.println("Type of 9223372036854775808	" + getType("9223372036854775808"));
-		System.out.println("Type of 9223372036854775808.1	" + getType("9223372036854775808.1"));
-		System.out.println("Type of 4.4028235E38		" + getType("4.4028235E38"));
-		System.out.println("Type of x			" + getType("x"));
-		System.out.println("Type of true			" + getType("true"));
-		System.out.println("Type of FALSE			" + getType("FALSE"));
-		System.out.println("Type of x12.23			" + getType("x12.23"));
-		System.out.println("Type of 12.x			" + getType("12.x"));
-		System.out.println("Type of abc			" + getType("abc"));
-		System.out.println("Type of [String > 255]		" + getType(blob));
-		System.out.println("Type of [String > 65535]	" + getType(longBlob));
-		System.out.println("Float max			" + Float.MAX_VALUE);
-		System.out.println("Int max			" + Integer.MAX_VALUE);
-		System.out.println("Long max			" + Long.MAX_VALUE);
-		System.out.println("Double max			" + Double.MAX_VALUE);
-		System.out.println("TYPE.FLOAT compareTo TYPE.DOUBLE			" + (SQLTYPE.FLOAT.compareTo(SQLTYPE.DOUBLE)));
-		System.out.println("TYPE.DOUBLE compareTo TYPE.FLOAT			" + (SQLTYPE.DOUBLE.compareTo(SQLTYPE.FLOAT)));
+		System.out.println("Type of 16						" + getType("16"));
+		System.out.println("Type of 32768					" + getType("32768"));
+		System.out.println("Type of 22000000000				" + getType("22000000000"));
+		System.out.println("Type of 9223372036854775808		" + getType("9223372036854775808"));
+		System.out.println("Type of 12.23					" + getType("12.23"));
+		System.out.println("Type of 4.4028235E39			" + getType("4.4028235E39"));
+		System.out.println("Type of 1.7976931348E309		" + getType("1.7976931348E309"));
+		System.out.println("Type of x						" + getType("x"));
+		System.out.println("Type of 016						" + getType("016"));
+		System.out.println("Type of 0.16					" + getType("0.16"));
+		System.out.println("Type of 00.16					" + getType("00.16"));
+		System.out.println("Type of 0.1.6					" + getType("0.1.6"));
+		System.out.println("Type of true					" + getType("true"));
+		System.out.println("Type of FALSE					" + getType("FALSE"));
+		System.out.println("Type of 0						" + getType("0"));
+		System.out.println("Type of 1						" + getType("1"));
+		System.out.println("Type of 2						" + getType("2"));
+		System.out.println("Type of x12.23					" + getType("x12.23"));
+		System.out.println("Type of 12.x					" + getType("12.x"));
+		System.out.println("Type of abc						" + getType("abc"));
+		System.out.println("Short max						" + Short.MAX_VALUE);
+		System.out.println("Int max							" + Integer.MAX_VALUE);
+		System.out.println("Long max						" + Long.MAX_VALUE);
+		System.out.println("Float max						" + Float.MAX_VALUE);
+		System.out.println("Double max						" + Double.MAX_VALUE);
+		System.out.println("TYPE.FLOAT compareTo DOUBLE		" + (SQLTYPE.FLOAT.compareTo(SQLTYPE.DOUBLE)));
+		System.out.println("TYPE.DOUBLE compareTo FLOAT		" + (SQLTYPE.DOUBLE.compareTo(SQLTYPE.FLOAT)));
 		
 		String str;
 		try {
@@ -369,7 +329,5 @@ public class JavaTypeUtil {
 		}
 
 	}
-
-
 
 }
