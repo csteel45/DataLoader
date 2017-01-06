@@ -28,10 +28,10 @@ import org.apache.log4j.Logger;
 /**
  * @author Christopher Steel - FortMoon Consulting, Inc.
  *
- * @since Dec 16, 2011 6:28:55 PM
+ * @since Dec 16, 2016 6:28:55 PM
  */
-public class SQLUtil {
-	private static Logger log = Logger.getLogger(SQLUtil.class);
+public class JavaTypeUtil {
+	private static Logger log = Logger.getLogger(JavaTypeUtil.class);
 	private static final String called = "called.";
 	/**
 	 * @param val
